@@ -49,6 +49,20 @@ elif [[ $distribution_type == "debian" ]]; then
     sudo nala install -y "${packages[@]}"
 fi
 
+# Install yay for Arch-based systems
+if [[ $distribution_type == "arch" ]]; then
+    if ! command -v yay &> /dev/null; then
+        echo "Installing yay AUR helper..."
+        git clone https://aur.archlinux.org/yay.git /tmp/yay
+        cd /tmp/yay
+        makepkg -si --noconfirm
+        cd ~/
+        rm -rf /tmp/yay
+    else
+        echo "yay is already installed."
+    fi
+fi
+
 # Clone dotfiles repository
 if [[ ! -d ~/.dotfiles ]]; then
     git clone https://github.com/Owen-3456/dotfiles.git ~/.dotfiles
