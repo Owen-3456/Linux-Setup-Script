@@ -3,7 +3,7 @@
 packages=(
     "git" "curl" "nano" "btop" "stow" "fzf" "ripgrep" "zoxide"
     "trash-cli" "jq" "starship" "aspell" "aspell-en" "bash-completion"
-    "bat" "fastfetch" "eza"
+    "bat" "fastfetch" "eza" "tmux"
 )
 
 gui_packages=("alacritty")
