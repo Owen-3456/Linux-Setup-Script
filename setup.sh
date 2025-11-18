@@ -8,7 +8,6 @@ packages=(
     "bash-completion"     # command auto-completion
     "bat"                 # cat clone with syntax highlighting
     "btop"                # resource monitor
-    "code"                # VS Code editor
     "coreutils"           # basic GNU file utilities
     "curl"                # HTTP transfer tool
     "eza"                 # modern ls replacement
