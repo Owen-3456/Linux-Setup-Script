@@ -1,9 +1,35 @@
 #!/bin/bash
 
 packages=(
-    "git" "curl" "nano" "btop" "stow" "fzf" "ripgrep" "zoxide"
-    "trash-cli" "jq" "starship" "aspell" "aspell-en" "bash-completion"
-    "bat" "fastfetch" "eza" "tmux" "alacritty"
+    "alacritty"           # GPU-accelerated terminal
+    "aspell"              # spell checker
+    "aspell-en"           # English dictionary for aspell
+    "aria2"               # lightweight download utility
+    "bash-completion"     # command auto-completion
+    "bat"                 # cat clone with syntax highlighting
+    "btop"                # resource monitor
+    "code"                # VS Code editor
+    "coreutils"           # basic GNU file utilities
+    "curl"                # HTTP transfer tool
+    "eza"                 # modern ls replacement
+    "ffmpeg"              # audio/video processing
+    "fastfetch"           # system info fetcher
+    "fzf"                 # fuzzy finder
+    "git"                 # version control
+    "gawk"                # text processing tool
+    "iproute2"            # networking utilities
+    "jq"                  # JSON processor
+    "net-tools"           # legacy networking tools
+    "nano"                # simple terminal text editor
+    "ripgrep"             # fast recursive search
+    "starship"            # minimal shell prompt
+    "stow"                # symlink-based dotfile manager
+    "strace"              # system call tracer
+    "tmux"                # terminal multiplexer
+    "tldr"                # simplified man pages
+    "trash-cli"           # safe trash management
+    "youtube-dl"          # video downloader
+    "zoxide"              # smarter cd
 )
 
 # Detect distribution type
