@@ -3,16 +3,8 @@
 packages=(
     "git" "curl" "nano" "btop" "stow" "fzf" "ripgrep" "zoxide"
     "trash-cli" "jq" "starship" "aspell" "aspell-en" "bash-completion"
-    "bat" "fastfetch" "eza" "tmux"
+    "bat" "fastfetch" "eza" "tmux" "alacritty"
 )
-
-gui_packages=("alacritty")
-
-# Prompt user whether setup had GUI
-read -p "Is this a GUI setup? (y/n): " gui_setup
-
-# Add GUI packages if needed
-[[ $gui_setup == [yY] ]] && packages+=("${gui_packages[@]}")
 
 # Detect distribution type
 if [[ -f /etc/os-release ]]; then
