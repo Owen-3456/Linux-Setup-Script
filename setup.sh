@@ -20,6 +20,7 @@ packages=(
     "jq"                  # JSON processor
     "net-tools"           # legacy networking tools
     "nano"                # simple terminal text editor
+    "nmap"                # network scanner
     "ripgrep"             # fast recursive search
     "starship"            # minimal shell prompt
     "stow"                # symlink-based dotfile manager
@@ -27,9 +28,30 @@ packages=(
     "tmux"                # terminal multiplexer
     "tldr"                # simplified man pages
     "trash-cli"           # safe trash management
-    "youtube-dl"          # video downloader
+    "xclip"               # clipboard utility
+    "yt-dlp"              # modern youtube-dl alternative
     "zoxide"              # smarter cd
 )
+
+optional_packages=(
+    "cowsay"              # text to speech with a cow
+    "fortune-mod"         # random quotes generator
+    "cmatrix"             # terminal matrix effect
+)
+
+# Add fun packages to main package list
+# Ask user for installation type
+echo "Choose installation type:"
+echo "1) Full"
+echo "2) Minimal"
+read -p "Enter choice [1/2]: " install_choice
+
+if [[ $install_choice == "1" ]]; then
+    packages+=("${optional_packages[@]}")
+    echo "Full installation selected."
+else
+    echo "Minimal installation selected."
+fi
 
 # Detect distribution type
 if [[ -f /etc/os-release ]]; then
