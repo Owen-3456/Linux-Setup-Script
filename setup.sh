@@ -44,7 +44,7 @@ optional_packages=(
 echo "Choose installation type:"
 echo "1) Full"
 echo "2) Minimal"
-read -p "Enter choice [1/2]: " install_choice
+read -r -p "Enter choice [1/2]: " install_choice
 
 if [[ $install_choice == "1" ]]; then
     packages+=("${optional_packages[@]}")
