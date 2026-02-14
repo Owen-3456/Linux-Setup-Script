@@ -6,48 +6,144 @@ set -euo pipefail
 # Supports: Arch-based and Debian-based distributions
 # =============================================================================
 
-# -- Colors -------------------------------------------------------------------
+# -- Colors & Formatting ------------------------------------------------------
+BOLD='\033[1m'
+DIM='\033[2m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RC='\033[0m'
 
+# -- Symbols ------------------------------------------------------------------
+TICK="${GREEN}${BOLD}✓${RC}"
+CROSS="${RED}${BOLD}✗${RC}"
+ARROW="${CYAN}${BOLD}›${RC}"
+WARN_SYM="${YELLOW}${BOLD}!${RC}"
+
+# -- Log file -----------------------------------------------------------------
+LOG_FILE=$(mktemp /tmp/dotfiles-setup-XXXXXX.log)
+
+# -- Step tracking ------------------------------------------------------------
+CURRENT_STEP=0
+TOTAL_STEPS=7
+
 # -- Helpers ------------------------------------------------------------------
-info()  { echo -e "${CYAN}[INFO]${RC}  $*"; }
-warn()  { echo -e "${YELLOW}[WARN]${RC}  $*"; }
-error() { echo -e "${RED}[ERROR]${RC} $*"; }
-ok()    { echo -e "${GREEN}[OK]${RC}    $*"; }
+step_header() {
+    ((CURRENT_STEP++)) || true
+    echo ""
+    echo -e "  ${BOLD}${CYAN}[${CURRENT_STEP}/${TOTAL_STEPS}]${RC} ${BOLD}$*${RC}"
+}
+
+info()  { echo -e "       ${ARROW} $*"; }
+warn()  { echo -e "       ${WARN_SYM} ${YELLOW}$*${RC}"; }
+ok()    { echo -e "       ${TICK} $*"; }
+fail()  { echo -e "       ${CROSS} $*"; }
+
+# -- Spinner ------------------------------------------------------------------
+# Usage: run_with_spinner "message" command [args...]
+# Runs the command with all output redirected to LOG_FILE, showing a spinner.
+_spinner_pid=""
+
+_start_spinner() {
+    local msg="$1"
+    {
+        local frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
+        local i=0
+        while true; do
+            printf "\r       \033[0;36m%s\033[0m \033[2m%s\033[0m" "${frames[$i]}" "$msg"
+            i=$(( (i + 1) % ${#frames[@]} ))
+            sleep 0.08
+        done
+    } &
+    _spinner_pid=$!
+}
+
+_stop_spinner() {
+    if [[ -n "$_spinner_pid" ]]; then
+        kill "$_spinner_pid" 2>/dev/null || true
+        wait "$_spinner_pid" 2>/dev/null || true
+        _spinner_pid=""
+    fi
+    printf "\r\033[K"
+}
+
+_cleanup() {
+    _stop_spinner
+    # Kill sudo keepalive if running
+    if [[ -n "${_sudo_keepalive_pid:-}" ]]; then
+        kill "$_sudo_keepalive_pid" 2>/dev/null || true
+        wait "$_sudo_keepalive_pid" 2>/dev/null || true
+    fi
+    tput cnorm 2>/dev/null || true
+}
+
+trap '_cleanup' EXIT
+trap '_cleanup; exit 130' INT
+
+run_with_spinner() {
+    local msg="$1"
+    shift
+
+    _start_spinner "$msg"
+
+    # Run the actual command, capturing output to log.
+    # stdin is inherited (not redirected) so sudo can prompt for a password.
+    local rc=0
+    echo "=== $(date '+%H:%M:%S') :: $msg ===" >> "$LOG_FILE"
+    "$@" >> "$LOG_FILE" 2>&1 || rc=$?
+
+    _stop_spinner
+
+    if [[ $rc -eq 0 ]]; then
+        ok "$msg"
+    else
+        fail "$msg"
+        echo -e "       ${DIM}See log: ${LOG_FILE}${RC}"
+    fi
+
+    return "$rc"
+}
 
 # -- Pre-flight checks -------------------------------------------------------
 if [[ $EUID -eq 0 ]]; then
-    error "Do not run this script as root. It will use sudo when needed."
+    echo -e "\n  ${CROSS} ${RED}Do not run this script as root. It will use sudo when needed.${RC}\n"
     exit 1
 fi
 
 if ! command -v curl &>/dev/null; then
-    error "curl is required but not installed. Install it first and re-run."
+    echo -e "\n  ${CROSS} ${RED}curl is required but not installed. Install it first and re-run.${RC}\n"
     exit 1
 fi
 
+# -- Cache sudo credentials upfront -------------------------------------------
+# This prompts the user for their password *before* any spinners start,
+# so the prompt is visible and interactive. The credential is then cached
+# for subsequent sudo calls.
+echo -e "  ${ARROW} Sudo access is required for package installation."
+if ! sudo -v; then
+    echo -e "  ${CROSS} ${RED}Failed to obtain sudo credentials.${RC}"
+    exit 1
+fi
+# Keep sudo alive in the background for the duration of the script
+(while true; do sudo -n true; sleep 50; done) &
+_sudo_keepalive_pid=$!
+
 # -- Install git if missing ---------------------------------------------------
 if ! command -v git &>/dev/null; then
-    info "git is not installed. Installing git..."
+    echo -e "  ${ARROW} git not found, installing..."
     if [[ -f /etc/arch-release ]] || grep -qi 'arch' /etc/os-release 2>/dev/null; then
-        sudo pacman -Sy --noconfirm git
+        sudo pacman -Sy --noconfirm git >> "$LOG_FILE" 2>&1
     elif [[ -f /etc/debian_version ]]; then
-        sudo apt-get update -qq && sudo apt-get install -y git
+        sudo apt-get update -qq >> "$LOG_FILE" 2>&1 && sudo apt-get install -y git >> "$LOG_FILE" 2>&1
     else
-        error "git is required but not installed, and could not auto-install on this distro."
+        echo -e "  ${CROSS} ${RED}Cannot auto-install git on this distro.${RC}"
         exit 1
     fi
-    ok "git installed."
+    echo -e "  ${TICK} git installed"
 fi
 
 # -- Package lists ------------------------------------------------------------
-# Packages are grouped by purpose. Commented-out packages are not required by
-# the dotfiles but may be useful to have installed.
-
 arch_packages=(
     # -- Core tools (required by dotfiles/bashrc) --
     "bash-completion"     # command auto-completion
@@ -157,42 +253,28 @@ detect_distro() {
 distro=$(detect_distro)
 
 if [[ "$distro" == "unknown" ]]; then
-    error "Unsupported distribution. This script supports Arch-based and Debian-based systems only."
+    echo -e "\n  ${CROSS} ${RED}Unsupported distribution. This script supports Arch-based and Debian-based systems only.${RC}\n"
     exit 1
 fi
-
-info "Detected distribution type: ${distro}"
 
 # -- Install packages ---------------------------------------------------------
 install_packages() {
     if [[ "$distro" == "arch" ]]; then
-        info "Performing full system upgrade..."
-        sudo pacman -Syu --noconfirm
-
-        info "Installing packages..."
-        # --needed skips already-installed packages for speed
-        sudo pacman -S --noconfirm --needed "${arch_packages[@]}"
+        run_with_spinner "Upgrading system" sudo pacman -Syu --noconfirm
+        run_with_spinner "Installing packages (${#arch_packages[@]} packages)" \
+            sudo pacman -S --noconfirm --needed "${arch_packages[@]}"
 
     elif [[ "$distro" == "debian" ]]; then
-        # Update package lists with apt first (always available)
-        info "Updating package lists..."
-        sudo apt-get update -qq
+        run_with_spinner "Updating package lists" sudo apt-get update -qq
 
-        # Install nala if not already present
         if ! command -v nala &>/dev/null; then
-            info "Installing nala package manager..."
-            sudo apt-get install -y nala
+            run_with_spinner "Installing nala package manager" sudo apt-get install -y nala
         fi
 
-        # From here on, use nala for everything
-        info "Updating package lists (nala)..."
-        sudo nala update
-
-        info "Upgrading system (nala)..."
-        sudo nala upgrade -y
-
-        info "Installing packages..."
-        sudo nala install -y "${debian_packages[@]}"
+        run_with_spinner "Updating package lists (nala)" sudo nala update
+        run_with_spinner "Upgrading system" sudo nala upgrade -y
+        run_with_spinner "Installing packages (${#debian_packages[@]} packages)" \
+            sudo nala install -y "${debian_packages[@]}"
     fi
 }
 
@@ -201,34 +283,29 @@ install_yay() {
     [[ "$distro" != "arch" ]] && return 0
 
     if command -v yay &>/dev/null; then
-        ok "yay is already installed."
+        ok "yay already installed"
         return 0
     fi
 
-    info "Installing yay AUR helper..."
-
-    # base-devel is required for makepkg
-    info "Ensuring base-devel is installed..."
-    sudo pacman -S --noconfirm --needed base-devel
+    run_with_spinner "Installing base-devel" sudo pacman -S --noconfirm --needed base-devel
 
     local tmpdir
     tmpdir=$(mktemp -d)
-    git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
-    (cd "$tmpdir/yay" && makepkg -si --noconfirm)
+
+    run_with_spinner "Cloning yay from AUR" git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
+    run_with_spinner "Building and installing yay" bash -c "cd '$tmpdir/yay' && makepkg -si --noconfirm"
     rm -rf "$tmpdir"
-    ok "yay installed."
 }
 
 # -- Install starship prompt ---------------------------------------------------
 install_starship() {
     if command -v starship &>/dev/null; then
-        ok "starship is already installed."
+        ok "Starship already installed"
         return 0
     fi
 
-    info "Installing starship prompt..."
-    curl -sS https://starship.rs/install.sh | sh -s -- -y
-    ok "starship installed."
+    run_with_spinner "Installing Starship prompt" \
+        bash -c 'curl -sS https://starship.rs/install.sh | sh -s -- -y'
 }
 
 # -- Install JetBrainsMono Nerd Font ------------------------------------------
@@ -237,11 +314,9 @@ install_nerd_font() {
     local font_dir="$HOME/.local/share/fonts/$font_name"
 
     if [[ -d "$font_dir" ]] && ls "$font_dir"/*.ttf &>/dev/null; then
-        ok "JetBrainsMono Nerd Font is already installed."
+        ok "JetBrainsMono Nerd Font already installed"
         return 0
     fi
-
-    info "Installing JetBrainsMono Nerd Font..."
 
     local tmpdir
     tmpdir=$(mktemp -d)
@@ -251,44 +326,38 @@ install_nerd_font() {
         | grep -i '^location:' | tr -d '\r' | awk '{print $2}')
 
     if [[ -z "$latest_url" ]]; then
-        # Fallback: use the redirect URL directly
         latest_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font_name}.zip"
     fi
 
-    if ! curl -fsSL -o "$tmpdir/${font_name}.zip" "$latest_url"; then
-        warn "Failed to download Nerd Font. Skipping font installation."
+    if ! run_with_spinner "Downloading JetBrainsMono Nerd Font" \
+        curl -fsSL -o "$tmpdir/${font_name}.zip" "$latest_url"; then
+        warn "Failed to download Nerd Font, skipping"
         rm -rf "$tmpdir"
         return 0
     fi
 
     mkdir -p "$font_dir"
-    unzip -qo "$tmpdir/${font_name}.zip" -d "$font_dir"
+    run_with_spinner "Extracting font files" unzip -qo "$tmpdir/${font_name}.zip" -d "$font_dir"
     rm -rf "$tmpdir"
 
-    # Rebuild font cache
     if command -v fc-cache &>/dev/null; then
-        fc-cache -f "$font_dir"
+        run_with_spinner "Rebuilding font cache" fc-cache -f "$font_dir"
     fi
-
-    ok "JetBrainsMono Nerd Font installed to $font_dir"
 }
 
 # -- Clone / update dotfiles --------------------------------------------------
 setup_dotfiles() {
     if [[ ! -d "$HOME/.dotfiles" ]]; then
-        info "Cloning dotfiles repository..."
-        git clone https://github.com/Owen-3456/dotfiles.git "$HOME/.dotfiles"
-        ok "Dotfiles cloned."
+        run_with_spinner "Cloning dotfiles repository" \
+            git clone https://github.com/Owen-3456/dotfiles.git "$HOME/.dotfiles"
     else
-        info "Dotfiles directory already exists. Pulling latest changes..."
-        git -C "$HOME/.dotfiles" pull
-        ok "Dotfiles updated."
+        run_with_spinner "Pulling latest dotfiles" \
+            git -C "$HOME/.dotfiles" pull
     fi
 }
 
 # -- Stow dotfiles ------------------------------------------------------------
 stow_dotfiles() {
-    # Remove existing config files that would conflict with stow symlinks
     local files_to_remove=(
         "$HOME/.bashrc"
         "$HOME/.nanorc"
@@ -298,27 +367,24 @@ stow_dotfiles() {
         "$HOME/.config/starship.toml"
     )
 
-    info "Removing existing config files that conflict with stow..."
+    info "Removing conflicting config files"
     for file in "${files_to_remove[@]}"; do
         if [[ -f "$file" || -L "$file" ]]; then
             rm -f "$file"
         fi
     done
 
-    info "Stowing dotfiles..."
     local stow_dir="$HOME/.dotfiles"
     local packages=()
-
-    # Dynamically detect all stow packages (top-level dirs that aren't hidden)
-    # Skip GUI-only packages (alacritty) so the script works on headless systems
     local skip_packages=("alacritty")
+
     for dir in "$stow_dir"/*/; do
         [[ -d "$dir" ]] || continue
         local pkg
         pkg=$(basename "$dir")
         # shellcheck disable=SC2076
         if [[ " ${skip_packages[*]} " =~ " $pkg " ]]; then
-            info "Skipping GUI package: $pkg"
+            info "Skipping GUI package: ${DIM}$pkg${RC}"
             continue
         fi
         packages+=("$pkg")
@@ -331,31 +397,30 @@ stow_dotfiles() {
 
     local failed=0
     for pkg in "${packages[@]}"; do
-        if stow -d "$stow_dir" -t "$HOME" --no-folding "$pkg" 2>/dev/null; then
-            ok "Stowed: $pkg"
+        if stow -d "$stow_dir" -t "$HOME" --no-folding "$pkg" 2>> "$LOG_FILE"; then
+            ok "Stowed ${BOLD}$pkg${RC}"
         else
-            # Retry with --adopt to handle existing files, then restore from git
-            if stow -d "$stow_dir" -t "$HOME" --no-folding --adopt "$pkg" 2>/dev/null; then
-                git -C "$stow_dir" checkout -- "$pkg"
-                ok "Stowed (adopted & restored): $pkg"
+            if stow -d "$stow_dir" -t "$HOME" --no-folding --adopt "$pkg" 2>> "$LOG_FILE"; then
+                git -C "$stow_dir" checkout -- "$pkg" >> "$LOG_FILE" 2>&1
+                ok "Stowed ${BOLD}$pkg${RC} ${DIM}(adopted & restored)${RC}"
             else
-                warn "Failed to stow: $pkg"
+                fail "Failed to stow: $pkg"
                 ((failed++)) || true
             fi
         fi
     done
 
     if [[ $failed -gt 0 ]]; then
-        warn "$failed package(s) failed to stow. Check for conflicting files."
+        warn "$failed package(s) failed to stow. Check log: $LOG_FILE"
     fi
 }
 
 # -- Update flatpaks (if installed) -------------------------------------------
 update_flatpaks() {
     if command -v flatpak &>/dev/null; then
-        info "Updating flatpak packages..."
-        flatpak update -y || warn "Some flatpak updates may have failed."
-        ok "Flatpak packages updated."
+        run_with_spinner "Updating Flatpak packages" flatpak update -y
+    else
+        info "${DIM}Flatpak not installed, skipping${RC}"
     fi
 }
 
@@ -365,61 +430,51 @@ main() {
     start_time=$(date +%s)
 
     echo ""
-    echo -e "${CYAN}========================================${RC}"
-    echo -e "${CYAN}  Dotfiles Setup Script${RC}"
-    echo -e "${CYAN}========================================${RC}"
-    echo ""
+    echo -e "  ${BOLD}Dotfiles Setup${RC} ${DIM}| ${distro} | log: ${LOG_FILE}${RC}"
+    echo -e "  ${DIM}──────────────────────────────────────${RC}"
 
+    step_header "Installing AUR helper"
     install_yay
-    echo ""
 
+    step_header "Installing system packages"
     install_packages
-    echo ""
 
+    step_header "Installing Starship prompt"
     install_starship
-    echo ""
 
+    step_header "Installing Nerd Font"
     install_nerd_font
-    echo ""
 
+    step_header "Setting up dotfiles"
     setup_dotfiles
-    echo ""
 
+    step_header "Linking dotfiles with Stow"
     stow_dotfiles
-    echo ""
 
+    step_header "Updating Flatpak packages"
     update_flatpaks
-    echo ""
 
     # -- Summary --------------------------------------------------------------
     local end_time duration
     end_time=$(date +%s)
     duration=$((end_time - start_time))
 
-    echo -e "${GREEN}========================================${RC}"
-    echo -e "${GREEN}  Setup complete!${RC}"
-    echo -e "${GREEN}========================================${RC}"
     echo ""
-    echo "  Time taken: $((duration / 60))m $((duration % 60))s"
+    echo -e "  ${GREEN}${BOLD}──────────────────────────────────────${RC}"
+    echo -e "  ${GREEN}${BOLD}  All done!${RC}  ${DIM}Completed in $((duration / 60))m $((duration % 60))s${RC}"
+    echo -e "  ${GREEN}${BOLD}──────────────────────────────────────${RC}"
     echo ""
-    echo -e "  ${CYAN}What was set up:${RC}"
-    echo "    - System packages installed and upgraded"
-    echo "    - Starship prompt installed"
-    echo "    - JetBrainsMono Nerd Font installed"
-    echo "    - Dotfiles cloned and symlinked via stow"
-    echo "    - Flatpak packages updated (if installed)"
+    echo -e "  ${BOLD}Configs applied:${RC}"
+    echo -e "    ${TICK} bash      ${DIM}~/.bashrc${RC}"
+    echo -e "    ${TICK} nano      ${DIM}~/.nanorc${RC}"
+    echo -e "    ${TICK} tmux      ${DIM}~/.tmux.conf${RC}"
+    echo -e "    ${TICK} git       ${DIM}~/.gitconfig${RC}"
+    echo -e "    ${TICK} starship  ${DIM}~/.config/starship.toml${RC}"
+    echo -e "    ${TICK} fastfetch ${DIM}~/.config/fastfetch/config.jsonc${RC}"
     echo ""
-    echo -e "  ${CYAN}Configs applied:${RC}"
-    echo "    - bash     : ~/.bashrc (aliases, functions, keybinds)"
-    echo "    - nano     : ~/.nanorc (keybinds, spell check, syntax highlighting)"
-    echo "    - tmux     : ~/.tmux.conf (mouse support, dark theme)"
-    echo "    - git      : ~/.gitconfig (LFS, credential store)"
-    echo "    - starship : ~/.config/starship.toml (prompt theme)"
-    echo "    - fastfetch: ~/.config/fastfetch/config.jsonc (system info display)"
-    echo ""
-    echo -e "  ${YELLOW}NOTE: Review ~/.gitconfig and update [user] name/email if needed.${RC}"
-    echo ""
-    echo "  Restart your shell or run: exec bash"
+    echo -e "  ${WARN_SYM} ${YELLOW}Review ~/.gitconfig and update [user] name/email if needed.${RC}"
+    echo -e "  ${ARROW} Restart your shell or run: ${BOLD}exec bash${RC}"
+    echo -e "  ${DIM}  Full log: ${LOG_FILE}${RC}"
     echo ""
 }
 
