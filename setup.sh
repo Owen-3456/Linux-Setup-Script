@@ -26,7 +26,7 @@ LOG_FILE=$(mktemp /tmp/dotfiles-setup-XXXXXX.log)
 
 # -- Step tracking ------------------------------------------------------------
 CURRENT_STEP=0
-TOTAL_STEPS=7
+TOTAL_STEPS=8
 
 # -- Helpers ------------------------------------------------------------------
 step_header() {
@@ -203,7 +203,6 @@ debian_packages=(
     "nano"                # terminal text editor (EDITOR in bashrc)
     "ripgrep"             # fast recursive search (bashrc alias: grep)
     "stow"                # symlink-based dotfile manager
-    "tldr"                # simplified man pages (bashrc alias: man)
     "tmux"                # terminal multiplexer
     "trash-cli"           # safe trash management (bashrc alias: rm, fzfdel)
     "wget"                # HTTP download tool (bashrc alias with progress bar)
@@ -220,8 +219,9 @@ debian_packages=(
     "nmap"                # network scanner (portscan function)
     "p7zip-full"          # 7z archive extraction (extract function)
     "python3"             # HTTP server (serve function)
+    "python3-pip"         # pip package manager (needed to install tldr)
     "strace"              # system call tracer (cpp function)
-    "unrar"               # rar archive extraction (extract function)
+    "unrar-free"          # rar archive extraction (extract function)
     "unzip"               # zip archive extraction (extract function)
     "yt-dlp"              # YouTube downloader (ytdl function)
 
@@ -295,6 +295,18 @@ install_yay() {
     run_with_spinner "Cloning yay from AUR" git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
     run_with_spinner "Building and installing yay" bash -c "cd '$tmpdir/yay' && makepkg -si --noconfirm"
     rm -rf "$tmpdir"
+}
+
+# -- Install tldr (Debian only, via pip) ---------------------------------------
+install_tldr() {
+    if command -v tldr &>/dev/null; then
+        ok "tldr already installed"
+        return 0
+    fi
+
+    if [[ "$distro" == "debian" ]]; then
+        run_with_spinner "Installing tldr via pip" pip install --break-system-packages tldr
+    fi
 }
 
 # -- Install starship prompt ---------------------------------------------------
@@ -438,6 +450,9 @@ main() {
 
     step_header "Installing system packages"
     install_packages
+
+    step_header "Installing tldr"
+    install_tldr
 
     step_header "Installing Starship prompt"
     install_starship
