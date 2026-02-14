@@ -1,8 +1,8 @@
 # Linux Setup Script
 
-Automated setup script for [Owen's dotfiles](https://github.com/Owen-3456/dotfiles). Installs all dependencies, clones the dotfiles repo, and symlinks configs into place using [GNU Stow](https://www.gnu.org/software/stow/). Designed to work on headless and GUI-less systems.
+Automated setup script for my [dotfiles](https://github.com/Owen-3456/dotfiles). Installs all dependencies, clones the dotfiles repo, and symlinks configs into place using [GNU Stow](https://www.gnu.org/software/stow/).
 
-Supports **Arch-based** and **Debian-based** distributions, including derivatives (Manjaro, EndeavourOS, Garuda, Pop!_OS, Linux Mint, Zorin, Elementary, etc.).
+**Only** Supports Arch-based and Debian-based distributions.
 
 ## Quick Start
 
@@ -43,42 +43,42 @@ Performs a full system upgrade, then installs all packages required by the dotfi
 
 #### Installed Packages
 
-| Package | Purpose |
-|---|---|
-| `bash-completion` | Command auto-completion |
-| `bat` | `cat` replacement with syntax highlighting |
-| `btop` | Resource monitor (`top`/`htop` alias) |
-| `curl` | HTTP transfers (`hb`, `weather`, etc.) |
-| `eza` | Modern `ls` replacement with icons |
-| `fastfetch` | System info (`neofetch` alias) |
-| `fzf` | Fuzzy finder (`installpkg`, `removepkg`, `fzfkill`, `fzfdel`, keybinds) |
-| `gawk` | Text processing (`cpp` function) |
-| `git` | Version control |
-| `git-lfs` | Git Large File Storage (configured in `.gitconfig`) |
-| `jq` | JSON processing (`hb` function) |
-| `nano` | Text editor (`$EDITOR`) |
-| `ripgrep` | Fast search (`grep` alias) |
-| `stow` | Symlink-based dotfile manager |
-| `tldr` | Simplified man pages (`man` alias) |
-| `tmux` | Terminal multiplexer |
-| `trash-cli` | Safe file deletion (`rm` alias, `fzfdel`) |
-| `wget` | Downloads with progress bar |
-| `xclip` | Clipboard utility (`copy` alias, `hb`, `serve`) |
-| `xdg-utils` | Desktop utilities (`openremote` function) |
-| `zoxide` | Smarter `cd` replacement |
-| `aria2` | Download accelerator (used by `ytdl` if available) |
-| `fd` / `fd-find` | Fast find alternative (fzf keybinds, `fzfdel`) |
-| `ffmpeg` | Audio/video processing (required by `yt-dlp`) |
-| `iproute2` | Networking utilities (`whatsmyip`) |
-| `net-tools` | Legacy networking (`openports` alias) |
-| `nmap` | Network scanner (`portscan` function) |
-| `p7zip` / `p7zip-full` | 7z archive extraction (`extract` function) |
-| `python` / `python3` | HTTP server (`serve` function) |
-| `strace` | System call tracer (`cpp` function) |
-| `unrar` | RAR extraction (`extract` function) |
-| `unzip` | ZIP extraction (`extract` function) |
-| `yt-dlp` | YouTube downloader (`ytdl` function) |
-| `aspell`, `aspell-en` | Spell checking (nano backend) |
+| Package                | Purpose                                                                 |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `bash-completion`      | Command auto-completion                                                 |
+| `bat`                  | `cat` replacement with syntax highlighting                              |
+| `btop`                 | Resource monitor (`top`/`htop` alias)                                   |
+| `curl`                 | HTTP transfers (`hb`, `weather`, etc.)                                  |
+| `eza`                  | Modern `ls` replacement with icons                                      |
+| `fastfetch`            | System info (`neofetch` alias)                                          |
+| `fzf`                  | Fuzzy finder (`installpkg`, `removepkg`, `fzfkill`, `fzfdel`, keybinds) |
+| `gawk`                 | Text processing (`cpp` function)                                        |
+| `git`                  | Version control                                                         |
+| `git-lfs`              | Git Large File Storage (configured in `.gitconfig`)                     |
+| `jq`                   | JSON processing (`hb` function)                                         |
+| `nano`                 | Text editor (`$EDITOR`)                                                 |
+| `ripgrep`              | Fast search (`grep` alias)                                              |
+| `stow`                 | Symlink-based dotfile manager                                           |
+| `tldr`                 | Simplified man pages (`man` alias)                                      |
+| `tmux`                 | Terminal multiplexer                                                    |
+| `trash-cli`            | Safe file deletion (`rm` alias, `fzfdel`)                               |
+| `wget`                 | Downloads with progress bar                                             |
+| `xclip`                | Clipboard utility (`copy` alias, `hb`, `serve`)                         |
+| `xdg-utils`            | Desktop utilities (`openremote` function)                               |
+| `zoxide`               | Smarter `cd` replacement                                                |
+| `aria2`                | Download accelerator (used by `ytdl` if available)                      |
+| `fd` / `fd-find`       | Fast find alternative (fzf keybinds, `fzfdel`)                          |
+| `ffmpeg`               | Audio/video processing (required by `yt-dlp`)                           |
+| `iproute2`             | Networking utilities (`whatsmyip`)                                      |
+| `net-tools`            | Legacy networking (`openports` alias)                                   |
+| `nmap`                 | Network scanner (`portscan` function)                                   |
+| `p7zip` / `p7zip-full` | 7z archive extraction (`extract` function)                              |
+| `python` / `python3`   | HTTP server (`serve` function)                                          |
+| `strace`               | System call tracer (`cpp` function)                                     |
+| `unrar`                | RAR extraction (`extract` function)                                     |
+| `unzip`                | ZIP extraction (`extract` function)                                     |
+| `yt-dlp`               | YouTube downloader (`ytdl` function)                                    |
+| `aspell`, `aspell-en`  | Spell checking (nano backend)                                           |
 
 Some package names differ between Arch and Debian (e.g., `fd` vs `fd-find`, `python` vs `python3`, `p7zip` vs `p7zip-full`). The script handles this with separate package arrays.
 
@@ -115,14 +115,14 @@ cd ~/.dotfiles && stow alacritty
 
 #### Configs applied
 
-| Package | Target | Description |
-|---|---|---|
-| `bash` | `~/.bashrc` | Aliases, functions, keybinds (~1250 lines) |
-| `nano` | `~/.nanorc` | Keybinds, spell check, syntax highlighting |
-| `tmux` | `~/.tmux.conf` | Mouse support, dark theme, 50k scrollback |
-| `git` | `~/.gitconfig` | Git LFS, credential store |
-| `starship` | `~/.config/starship.toml` | Prompt theme |
-| `fastfetch` | `~/.config/fastfetch/config.jsonc` | System info display |
+| Package     | Target                             | Description                                |
+| ----------- | ---------------------------------- | ------------------------------------------ |
+| `bash`      | `~/.bashrc`                        | Aliases, functions, keybinds (~1250 lines) |
+| `nano`      | `~/.nanorc`                        | Keybinds, spell check, syntax highlighting |
+| `tmux`      | `~/.tmux.conf`                     | Mouse support, dark theme, 50k scrollback  |
+| `git`       | `~/.gitconfig`                     | Git LFS, credential store                  |
+| `starship`  | `~/.config/starship.toml`          | Prompt theme                               |
+| `fastfetch` | `~/.config/fastfetch/config.jsonc` | System info display                        |
 
 ### 7. Update Flatpaks
 
@@ -134,14 +134,14 @@ If Flatpak is installed, updates all Flatpak packages. Skipped silently if Flatp
 
 The script reads `/etc/os-release` and classifies the system as `arch` or `debian`. It recognizes these distributions directly:
 
-| Arch-based | Debian-based |
-|---|---|
-| Arch Linux | Debian |
-| Manjaro | Ubuntu |
-| EndeavourOS | Pop!_OS |
-| Garuda | Linux Mint |
-| | Zorin OS |
-| | elementary OS |
+| Arch-based  | Debian-based  |
+| ----------- | ------------- |
+| Arch Linux  | Debian        |
+| Manjaro     | Ubuntu        |
+| EndeavourOS | Pop!_OS       |
+| Garuda      | Linux Mint    |
+|             | Zorin OS      |
+|             | elementary OS |
 
 For unlisted distros, it falls back to the `ID_LIKE` field (e.g., a distro reporting `ID_LIKE="ubuntu debian"` will be treated as Debian-based). If neither match, the script exits with an error.
 
