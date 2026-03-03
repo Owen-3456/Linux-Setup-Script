@@ -26,7 +26,7 @@ LOG_FILE=$(mktemp /tmp/dotfiles-setup-XXXXXX.log)
 
 # -- Step tracking ------------------------------------------------------------
 CURRENT_STEP=0
-TOTAL_STEPS=8
+TOTAL_STEPS=9
 
 # -- Helpers ------------------------------------------------------------------
 step_header() {
@@ -35,10 +35,10 @@ step_header() {
     echo -e "  ${BOLD}${CYAN}[${CURRENT_STEP}/${TOTAL_STEPS}]${RC} ${BOLD}$*${RC}"
 }
 
-info()  { echo -e "       ${ARROW} $*"; }
-warn()  { echo -e "       ${WARN_SYM} ${YELLOW}$*${RC}"; }
-ok()    { echo -e "       ${TICK} $*"; }
-fail()  { echo -e "       ${CROSS} $*"; }
+info() { echo -e "       ${ARROW} $*"; }
+warn() { echo -e "       ${WARN_SYM} ${YELLOW}$*${RC}"; }
+ok() { echo -e "       ${TICK} $*"; }
+fail() { echo -e "       ${CROSS} $*"; }
 
 # -- Spinner ------------------------------------------------------------------
 # Usage: run_with_spinner "message" command [args...]
@@ -52,7 +52,7 @@ _start_spinner() {
         local i=0
         while true; do
             printf "\r       \033[0;36m%s\033[0m \033[2m%s\033[0m" "${frames[$i]}" "$msg"
-            i=$(( (i + 1) % ${#frames[@]} ))
+            i=$(((i + 1) % ${#frames[@]}))
             sleep 0.08
         done
     } &
@@ -90,8 +90,8 @@ run_with_spinner() {
     # Run the actual command, capturing output to log.
     # stdin is inherited (not redirected) so sudo can prompt for a password.
     local rc=0
-    echo "=== $(date '+%H:%M:%S') :: $msg ===" >> "$LOG_FILE"
-    "$@" >> "$LOG_FILE" 2>&1 || rc=$?
+    echo "=== $(date '+%H:%M:%S') :: $msg ===" >>"$LOG_FILE"
+    "$@" >>"$LOG_FILE" 2>&1 || rc=$?
 
     _stop_spinner
 
@@ -126,16 +126,19 @@ if ! sudo -v; then
     exit 1
 fi
 # Keep sudo alive in the background for the duration of the script
-(while true; do sudo -n true; sleep 50; done) &
+(while true; do
+    sudo -n true
+    sleep 50
+done) &
 _sudo_keepalive_pid=$!
 
 # -- Install git if missing ---------------------------------------------------
 if ! command -v git &>/dev/null; then
     echo -e "  ${ARROW} git not found, installing..."
     if [[ -f /etc/arch-release ]] || grep -qi 'arch' /etc/os-release 2>/dev/null; then
-        sudo pacman -Sy --noconfirm git >> "$LOG_FILE" 2>&1
+        sudo pacman -Sy --noconfirm git >>"$LOG_FILE" 2>&1
     elif [[ -f /etc/debian_version ]]; then
-        sudo apt-get update -qq >> "$LOG_FILE" 2>&1 && sudo apt-get install -y git >> "$LOG_FILE" 2>&1
+        sudo apt-get update -qq >>"$LOG_FILE" 2>&1 && sudo apt-get install -y git >>"$LOG_FILE" 2>&1
     else
         echo -e "  ${CROSS} ${RED}Cannot auto-install git on this distro.${RC}"
         exit 1
@@ -145,89 +148,91 @@ fi
 
 # -- Package lists ------------------------------------------------------------
 arch_packages=(
-    # -- Core tools (required by dotfiles/bashrc) --
-    "bash-completion"     # command auto-completion
-    "bat"                 # cat clone with syntax highlighting (bashrc alias)
-    "btop"                # resource monitor (bashrc alias: top/htop)
-    "curl"                # HTTP transfer tool (used by hb, weather, etc.)
-    "eza"                 # modern ls replacement (bashrc aliases)
-    "fastfetch"           # system info fetcher (bashrc alias: neofetch)
-    "fzf"                 # fuzzy finder (installpkg, removepkg, fzfkill, etc.)
-    "gawk"                # text processing (used by cpp function)
-    "git"                 # version control
-    "git-lfs"             # Git Large File Storage (gitconfig filter)
-    "jq"                  # JSON processor (used by hb function)
-    "nano"                # terminal text editor (EDITOR in bashrc)
-    "ripgrep"             # fast recursive search (bashrc alias: grep)
-    "stow"                # symlink-based dotfile manager
-    "tldr"                # simplified man pages (bashrc alias: man)
-    "tmux"                # terminal multiplexer
-    "trash-cli"           # safe trash management (bashrc alias: rm, fzfdel)
-    "wget"                # HTTP download tool (bashrc alias with progress bar)
-    "xclip"               # clipboard utility (bashrc copy alias, hb, serve)
-    "xdg-utils"           # desktop utilities (openremote function uses xdg-open)
-    "zoxide"              # smarter cd (bashrc alias: cd)
+    # -- Core tools (required by dotfiles/zshrc) --
+    "bat"       # cat clone with syntax highlighting (zshrc alias)
+    "btop"      # resource monitor (zshrc alias: top/htop)
+    "curl"      # HTTP transfer tool (used by hb, weather, etc.)
+    "eza"       # modern ls replacement (zshrc aliases)
+    "fastfetch" # system info fetcher (zshrc alias: neofetch)
+    "fzf"       # fuzzy finder (installpkg, removepkg, fzfkill, etc.)
+    "gawk"      # text processing (used by cpp function)
+    "git"       # version control
+    "git-lfs"   # Git Large File Storage (gitconfig filter)
+    "jq"        # JSON processor (used by hb function)
+    "nano"      # terminal text editor (EDITOR in zshrc)
+    "ripgrep"   # fast recursive search (zshrc alias: grep)
+    "stow"      # symlink-based dotfile manager
+    "tldr"      # simplified man pages (zshrc alias: man)
+    "tmux"      # terminal multiplexer
+    "trash-cli" # safe trash management (zshrc alias: rm, fzfdel)
+    "wget"      # HTTP download tool (zshrc alias with progress bar)
+    "xclip"     # clipboard utility (zshrc copy alias, hb, serve)
+    "xdg-utils" # desktop utilities (openremote function uses xdg-open)
+    "zoxide"    # smarter cd (zshrc alias: cd)
+    "zsh"       # Z shell
 
-    # -- Used by bashrc functions --
-    "aria2"               # download accelerator (used by ytdl if available)
-    "fd"                  # fast find alternative (used by fzf keybinds & fzfdel)
-    "ffmpeg"              # audio/video processing (required by yt-dlp for merging)
-    "iproute2"            # networking utilities (whatsmyip function)
-    "net-tools"           # legacy networking tools (openports alias)
-    "nmap"                # network scanner (portscan function)
-    "p7zip"               # 7z archive extraction (extract function)
-    "python"              # HTTP server (serve function)
-    "strace"              # system call tracer (cpp function)
-    "unrar"               # rar archive extraction (extract function)
-    "unzip"               # zip archive extraction (extract function)
-    "yt-dlp"              # YouTube downloader (ytdl function)
+    # -- Used by zshrc functions --
+    "aria2"             # download accelerator (used by ytdl if available)
+    "fd"                # fast find alternative (used by fzf keybinds & fzfdel)
+    "ffmpeg"            # audio/video processing (required by yt-dlp for merging)
+    "iproute2"          # networking utilities (whatsmyip function)
+    "libreoffice-fresh" # office suite (topdf function)
+    "net-tools"         # legacy networking tools (openports alias)
+    "nmap"              # network scanner (portscan function)
+    "p7zip"             # 7z archive extraction (extract function)
+    "python"            # HTTP server (serve function)
+    "strace"            # system call tracer (cpp function)
+    "unrar"             # rar archive extraction (extract function)
+    "unzip"             # zip archive extraction (extract function)
+    "yt-dlp"            # YouTube downloader (ytdl function)
 
     # -- Nano spell checking --
-    "aspell"              # spell checker (nano speller backend)
-    "aspell-en"           # English dictionary for aspell
+    "aspell"    # spell checker (nano speller backend)
+    "aspell-en" # English dictionary for aspell
 )
 
 debian_packages=(
-    # -- Core tools (required by dotfiles/bashrc) --
-    "bash-completion"     # command auto-completion
-    "bat"                 # cat clone with syntax highlighting (bashrc alias)
-    "btop"                # resource monitor (bashrc alias: top/htop)
-    "curl"                # HTTP transfer tool (used by hb, weather, etc.)
-    "eza"                 # modern ls replacement (bashrc aliases)
-    "fastfetch"           # system info fetcher (bashrc alias: neofetch)
-    "fzf"                 # fuzzy finder (installpkg, removepkg, fzfkill, etc.)
-    "gawk"                # text processing (used by cpp function)
-    "git"                 # version control
-    "git-lfs"             # Git Large File Storage (gitconfig filter)
-    "jq"                  # JSON processor (used by hb function)
-    "nano"                # terminal text editor (EDITOR in bashrc)
-    "ripgrep"             # fast recursive search (bashrc alias: grep)
-    "stow"                # symlink-based dotfile manager
-    "tmux"                # terminal multiplexer
-    "trash-cli"           # safe trash management (bashrc alias: rm, fzfdel)
-    "wget"                # HTTP download tool (bashrc alias with progress bar)
-    "xclip"               # clipboard utility (bashrc copy alias, hb, serve)
-    "xdg-utils"           # desktop utilities (openremote function uses xdg-open)
-    "zoxide"              # smarter cd (bashrc alias: cd)
+    # -- Core tools (required by dotfiles/zshrc) --
+    "bat"       # cat clone with syntax highlighting (zshrc alias)
+    "btop"      # resource monitor (zshrc alias: top/htop)
+    "curl"      # HTTP transfer tool (used by hb, weather, etc.)
+    "eza"       # modern ls replacement (zshrc aliases)
+    "fastfetch" # system info fetcher (zshrc alias: neofetch)
+    "fzf"       # fuzzy finder (installpkg, removepkg, fzfkill, etc.)
+    "gawk"      # text processing (used by cpp function)
+    "git"       # version control
+    "git-lfs"   # Git Large File Storage (gitconfig filter)
+    "jq"        # JSON processor (used by hb function)
+    "nano"      # terminal text editor (EDITOR in zshrc)
+    "ripgrep"   # fast recursive search (zshrc alias: grep)
+    "stow"      # symlink-based dotfile manager
+    "tmux"      # terminal multiplexer
+    "trash-cli" # safe trash management (zshrc alias: rm, fzfdel)
+    "wget"      # HTTP download tool (zshrc alias with progress bar)
+    "xclip"     # clipboard utility (zshrc copy alias, hb, serve)
+    "xdg-utils" # desktop utilities (openremote function uses xdg-open)
+    "zoxide"    # smarter cd (zshrc alias: cd)
+    "zsh"       # Z shell
 
-    # -- Used by bashrc functions --
-    "aria2"               # download accelerator (used by ytdl if available)
-    "fd-find"             # fast find alternative (used by fzf keybinds & fzfdel)
-    "ffmpeg"              # audio/video processing (required by yt-dlp for merging)
-    "iproute2"            # networking utilities (whatsmyip function)
-    "net-tools"           # legacy networking tools (openports alias)
-    "nmap"                # network scanner (portscan function)
-    "p7zip-full"          # 7z archive extraction (extract function)
-    "python3"             # HTTP server (serve function)
-    "python3-pip"         # pip package manager (needed to install tldr)
-    "strace"              # system call tracer (cpp function)
-    "unrar-free"          # rar archive extraction (extract function)
-    "unzip"               # zip archive extraction (extract function)
-    "yt-dlp"              # YouTube downloader (ytdl function)
+    # -- Used by zshrc functions --
+    "aria2"       # download accelerator (used by ytdl if available)
+    "fd-find"     # fast find alternative (used by fzf keybinds & fzfdel)
+    "ffmpeg"      # audio/video processing (required by yt-dlp for merging)
+    "iproute2"    # networking utilities (whatsmyip function)
+    "libreoffice" # office suite (topdf function)
+    "net-tools"   # legacy networking tools (openports alias)
+    "nmap"        # network scanner (portscan function)
+    "p7zip-full"  # 7z archive extraction (extract function)
+    "python3"     # HTTP server (serve function)
+    "python3-pip" # pip package manager (needed to install tldr)
+    "strace"      # system call tracer (cpp function)
+    "unrar-free"  # rar archive extraction (extract function)
+    "unzip"       # zip archive extraction (extract function)
+    "yt-dlp"      # YouTube downloader (ytdl function)
 
     # -- Nano spell checking --
-    "aspell"              # spell checker (nano speller backend)
-    "aspell-en"           # English dictionary for aspell
+    "aspell"    # spell checker (nano speller backend)
+    "aspell-en" # English dictionary for aspell
 )
 
 # -- Detect distribution ------------------------------------------------------
@@ -235,15 +240,15 @@ detect_distro() {
     if [[ -f /etc/os-release ]]; then
         source /etc/os-release
         case $ID in
-            arch|manjaro|endeavouros|garuda) echo "arch" ;;
-            ubuntu|debian|pop|linuxmint|zorin|elementary) echo "debian" ;;
-            *)
-                case ${ID_LIKE:-} in
-                    *arch*) echo "arch" ;;
-                    *debian*|*ubuntu*) echo "debian" ;;
-                    *) echo "unknown" ;;
-                esac
-                ;;
+        arch | manjaro | endeavouros | garuda) echo "arch" ;;
+        ubuntu | debian | pop | linuxmint | zorin | elementary) echo "debian" ;;
+        *)
+            case ${ID_LIKE:-} in
+            *arch*) echo "arch" ;;
+            *debian* | *ubuntu*) echo "debian" ;;
+            *) echo "unknown" ;;
+            esac
+            ;;
         esac
     else
         echo "unknown"
@@ -334,8 +339,8 @@ install_nerd_font() {
     tmpdir=$(mktemp -d)
 
     local latest_url
-    latest_url=$(curl -sI "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font_name}.zip" \
-        | grep -i '^location:' | tr -d '\r' | awk '{print $2}')
+    latest_url=$(curl -sI "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font_name}.zip" |
+        grep -i '^location:' | tr -d '\r' | awk '{print $2}')
 
     if [[ -z "$latest_url" ]]; then
         latest_url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font_name}.zip"
@@ -371,7 +376,7 @@ setup_dotfiles() {
 # -- Stow dotfiles ------------------------------------------------------------
 stow_dotfiles() {
     local files_to_remove=(
-        "$HOME/.bashrc"
+        "$HOME/.zshrc"
         "$HOME/.nanorc"
         "$HOME/.tmux.conf"
         "$HOME/.gitconfig"
@@ -409,11 +414,11 @@ stow_dotfiles() {
 
     local failed=0
     for pkg in "${packages[@]}"; do
-        if stow -d "$stow_dir" -t "$HOME" --no-folding "$pkg" 2>> "$LOG_FILE"; then
+        if stow -d "$stow_dir" -t "$HOME" --no-folding "$pkg" 2>>"$LOG_FILE"; then
             ok "Stowed ${BOLD}$pkg${RC}"
         else
-            if stow -d "$stow_dir" -t "$HOME" --no-folding --adopt "$pkg" 2>> "$LOG_FILE"; then
-                git -C "$stow_dir" checkout -- "$pkg" >> "$LOG_FILE" 2>&1
+            if stow -d "$stow_dir" -t "$HOME" --no-folding --adopt "$pkg" 2>>"$LOG_FILE"; then
+                git -C "$stow_dir" checkout -- "$pkg" >>"$LOG_FILE" 2>&1
                 ok "Stowed ${BOLD}$pkg${RC} ${DIM}(adopted & restored)${RC}"
             else
                 fail "Failed to stow: $pkg"
@@ -433,6 +438,41 @@ update_flatpaks() {
         run_with_spinner "Updating Flatpak packages" flatpak update -y
     else
         info "${DIM}Flatpak not installed, skipping${RC}"
+    fi
+}
+
+# -- Setup zsh as default shell -----------------------------------------------
+setup_zsh() {
+    # Verify zsh is installed
+    if ! command -v zsh &>/dev/null; then
+        fail "zsh not found after installation"
+        return 1
+    fi
+
+    local zsh_path
+    zsh_path=$(command -v zsh)
+
+    # Check if zsh is in /etc/shells
+    if ! grep -q "^${zsh_path}$" /etc/shells; then
+        info "Adding zsh to /etc/shells"
+        echo "$zsh_path" | sudo tee -a /etc/shells >>"$LOG_FILE" 2>&1
+    fi
+
+    # Change default shell to zsh if not already set
+    if [[ "$SHELL" != "$zsh_path" ]]; then
+        run_with_spinner "Setting zsh as default shell" chsh -s "$zsh_path"
+        ok "Default shell changed to zsh (takes effect on next login)"
+    else
+        ok "zsh is already the default shell"
+    fi
+
+    # Install zinit plugin manager if not present
+    local zinit_home="${XDG_DATA_HOME:-$HOME/.local/share}/zinit/zinit.git"
+    if [[ ! -d "$zinit_home" ]]; then
+        run_with_spinner "Installing zinit plugin manager" \
+            git clone https://github.com/zdharma-continuum/zinit.git "$zinit_home"
+    else
+        ok "zinit already installed"
     fi
 }
 
@@ -466,6 +506,9 @@ main() {
     step_header "Linking dotfiles with Stow"
     stow_dotfiles
 
+    step_header "Configuring zsh"
+    setup_zsh
+
     step_header "Updating Flatpak packages"
     update_flatpaks
 
@@ -480,7 +523,7 @@ main() {
     echo -e "  ${GREEN}${BOLD}──────────────────────────────────────${RC}"
     echo ""
     echo -e "  ${BOLD}Configs applied:${RC}"
-    echo -e "    ${TICK} bash      ${DIM}~/.bashrc${RC}"
+    echo -e "    ${TICK} zsh       ${DIM}~/.zshrc${RC}"
     echo -e "    ${TICK} nano      ${DIM}~/.nanorc${RC}"
     echo -e "    ${TICK} tmux      ${DIM}~/.tmux.conf${RC}"
     echo -e "    ${TICK} git       ${DIM}~/.gitconfig${RC}"
@@ -488,7 +531,8 @@ main() {
     echo -e "    ${TICK} fastfetch ${DIM}~/.config/fastfetch/config.jsonc${RC}"
     echo ""
     echo -e "  ${WARN_SYM} ${YELLOW}Review ~/.gitconfig and update [user] name/email if needed.${RC}"
-    echo -e "  ${ARROW} Restart your shell or run: ${BOLD}exec bash${RC}"
+    echo -e "  ${ARROW} ${BOLD}Log out and log back in${RC} for zsh to become your default shell"
+    echo -e "  ${ARROW} Or start zsh now: ${BOLD}zsh${RC}"
     echo -e "  ${DIM}  Full log: ${LOG_FILE}${RC}"
     echo ""
 }

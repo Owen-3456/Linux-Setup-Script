@@ -28,7 +28,7 @@ chmod +x setup.sh
 3. **Installs tldr** (Debian only) -- via pip, since it's not in apt repos
 4. **Installs [Starship](https://starship.rs/)** -- prompt theme
 5. **Installs [JetBrainsMono Nerd Font](https://www.nerdfonts.com/)** -- required for prompt glyphs and file icons
-6. **Clones and stows [dotfiles](https://github.com/Owen-3456/dotfiles)** -- symlinks configs for bash, nano, tmux, git, starship, and fastfetch
+6. **Clones and stows [dotfiles](https://github.com/Owen-3456/dotfiles)** -- symlinks configs for zsh, nano, tmux, git, starship, and fastfetch
 7. **Updates Flatpaks** -- if Flatpak is installed
 
 All command output is suppressed and logged to `/tmp/dotfiles-setup-*.log`.
@@ -37,7 +37,7 @@ All command output is suppressed and logged to `/tmp/dotfiles-setup-*.log`.
 
 | Package     | Target                             |
 | ----------- | ---------------------------------- |
-| `bash`      | `~/.bashrc`                        |
+| `zsh`       | `~/.zshrc`                         |
 | `nano`      | `~/.nanorc`                        |
 | `tmux`      | `~/.tmux.conf`                     |
 | `git`       | `~/.gitconfig`                     |
@@ -56,6 +56,6 @@ Detected via `/etc/os-release`. Falls back to `ID_LIKE` for unlisted distros.
 
 ## Post-Setup
 
-1. Restart your shell: `exec bash`
+1. Restart your shell: `exec zsh` (or change default shell: `chsh -s $(which zsh)`)
 2. Update `~/.gitconfig` with your name/email
 3. Set your terminal font to **JetBrainsMono Nerd Font**
