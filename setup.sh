@@ -26,7 +26,7 @@ LOG_FILE=$(mktemp /tmp/dotfiles-setup-XXXXXX.log)
 
 # -- Step tracking ------------------------------------------------------------
 CURRENT_STEP=0
-TOTAL_STEPS=9
+TOTAL_STEPS=9  # Will be adjusted based on distro
 
 # -- Helpers ------------------------------------------------------------------
 step_header() {
@@ -262,6 +262,13 @@ if [[ "$distro" == "unknown" ]]; then
     exit 1
 fi
 
+# Set total steps based on distro (Arch has AUR helper step, Debian doesn't)
+if [[ "$distro" == "arch" ]]; then
+    TOTAL_STEPS=9
+else
+    TOTAL_STEPS=8
+fi
+
 # -- Ensure non-free repos are enabled (Debian only) -------------------------
 enable_debian_repos() {
     local sources_file="/etc/apt/sources.list"
@@ -293,11 +300,13 @@ install_packages() {
 
     elif [[ "$distro" == "debian" ]]; then
         # Fix any interrupted dpkg operations first
-        info "Fixing any interrupted package operations"
+        local dpkg_broken=false
+        info "Checking package system integrity"
         if sudo dpkg --configure -a >>"$LOG_FILE" 2>&1; then
             ok "Package system is clean"
         else
-            warn "dpkg --configure encountered issues, will try to continue"
+            dpkg_broken=true
+            warn "Package system has issues - skipping system upgrade to avoid conflicts"
         fi
         
         # Ensure non-free repos are enabled first
@@ -311,12 +320,15 @@ install_packages() {
 
         run_with_spinner "Updating package lists (nala)" sudo nala update
         
-        # Try to upgrade using apt-get instead of nala to avoid dpkg issues
-        info "Upgrading system packages"
-        if sudo apt-get upgrade -y >>"$LOG_FILE" 2>&1; then
-            ok "System upgraded successfully"
+        # Only upgrade if dpkg is not broken
+        if [[ "$dpkg_broken" == "false" ]]; then
+            if run_with_spinner "Upgrading system packages" sudo apt-get upgrade -y; then
+                : # success
+            else
+                warn "System upgrade failed, continuing with package installation"
+            fi
         else
-            warn "System upgrade encountered issues, continuing with package installation"
+            warn "Skipping system upgrade due to package system issues"
         fi
         
         # Install packages one by one to avoid dependency resolution issues
@@ -543,8 +555,10 @@ main() {
     echo -e "  ${BOLD}Dotfiles Setup${RC} ${DIM}| ${distro} | log: ${LOG_FILE}${RC}"
     echo -e "  ${DIM}──────────────────────────────────────${RC}"
 
-    step_header "Installing AUR helper"
-    install_yay
+    if [[ "$distro" == "arch" ]]; then
+        step_header "Installing AUR helper"
+        install_yay
+    fi
 
     step_header "Installing system packages"
     install_packages
