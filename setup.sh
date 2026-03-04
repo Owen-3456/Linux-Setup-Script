@@ -305,23 +305,22 @@ install_packages() {
         run_with_spinner "Upgrading system" sudo nala upgrade -y
         
         # Install packages one by one to avoid dependency resolution issues
-        info "Installing packages (${#debian_packages[@]} packages)"
         local failed_packages=()
         local installed_count=0
+        local total_packages=${#debian_packages[@]}
         
         for pkg in "${debian_packages[@]}"; do
-            if sudo nala install -y "$pkg" >>"$LOG_FILE" 2>&1; then
-                ((installed_count++)) || true
+            ((installed_count++)) || true
+            if run_with_spinner "Installing $pkg ($installed_count/$total_packages)" sudo nala install -y "$pkg"; then
+                : # success
             else
                 failed_packages+=("$pkg")
+                ((installed_count--)) || true
             fi
         done
         
-        if [[ ${#failed_packages[@]} -eq 0 ]]; then
-            ok "Installing packages ($installed_count packages)"
-        else
-            warn "Installed $installed_count/${#debian_packages[@]} packages"
-            warn "Failed packages: ${failed_packages[*]}"
+        if [[ ${#failed_packages[@]} -gt 0 ]]; then
+            warn "Failed to install ${#failed_packages[@]} package(s): ${failed_packages[*]}"
             echo "Failed to install: ${failed_packages[*]}" >> "$LOG_FILE"
         fi
     fi
