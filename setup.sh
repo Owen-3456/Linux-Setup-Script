@@ -262,6 +262,28 @@ if [[ "$distro" == "unknown" ]]; then
     exit 1
 fi
 
+# -- Ensure non-free repos are enabled (Debian only) -------------------------
+enable_debian_repos() {
+    local sources_file="/etc/apt/sources.list"
+    local sources_d="/etc/apt/sources.list.d"
+    
+    # Check if non-free and contrib are already enabled
+    if grep -r "^deb.*main.*contrib.*non-free" "$sources_file" "$sources_d" &>/dev/null; then
+        ok "Non-free repositories already enabled"
+        return 0
+    fi
+    
+    info "Enabling non-free and contrib repositories"
+    
+    # Backup the sources file
+    sudo cp "$sources_file" "${sources_file}.backup-$(date +%Y%m%d-%H%M%S)" 2>>"$LOG_FILE"
+    
+    # Add non-free and contrib to existing deb lines that have 'main'
+    sudo sed -i 's/^\(deb.*main\)$/\1 contrib non-free non-free-firmware/' "$sources_file" 2>>"$LOG_FILE"
+    
+    ok "Non-free repositories enabled"
+}
+
 # -- Install packages ---------------------------------------------------------
 install_packages() {
     if [[ "$distro" == "arch" ]]; then
@@ -270,6 +292,9 @@ install_packages() {
             sudo pacman -S --noconfirm --needed "${arch_packages[@]}"
 
     elif [[ "$distro" == "debian" ]]; then
+        # Ensure non-free repos are enabled first
+        enable_debian_repos
+        
         run_with_spinner "Updating package lists" sudo apt-get update -qq
 
         if ! command -v nala &>/dev/null; then
@@ -278,8 +303,27 @@ install_packages() {
 
         run_with_spinner "Updating package lists (nala)" sudo nala update
         run_with_spinner "Upgrading system" sudo nala upgrade -y
-        run_with_spinner "Installing packages (${#debian_packages[@]} packages)" \
-            sudo nala install -y "${debian_packages[@]}"
+        
+        # Install packages one by one to avoid dependency resolution issues
+        info "Installing packages (${#debian_packages[@]} packages)"
+        local failed_packages=()
+        local installed_count=0
+        
+        for pkg in "${debian_packages[@]}"; do
+            if sudo nala install -y "$pkg" >>"$LOG_FILE" 2>&1; then
+                ((installed_count++)) || true
+            else
+                failed_packages+=("$pkg")
+            fi
+        done
+        
+        if [[ ${#failed_packages[@]} -eq 0 ]]; then
+            ok "Installing packages ($installed_count packages)"
+        else
+            warn "Installed $installed_count/${#debian_packages[@]} packages"
+            warn "Failed packages: ${failed_packages[*]}"
+            echo "Failed to install: ${failed_packages[*]}" >> "$LOG_FILE"
+        fi
     fi
 }
 
