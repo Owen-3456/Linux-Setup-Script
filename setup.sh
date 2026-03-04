@@ -292,6 +292,9 @@ install_packages() {
             sudo pacman -S --noconfirm --needed "${arch_packages[@]}"
 
     elif [[ "$distro" == "debian" ]]; then
+        # Fix any interrupted dpkg operations first
+        run_with_spinner "Fixing interrupted package operations" sudo dpkg --configure -a
+        
         # Ensure non-free repos are enabled first
         enable_debian_repos
         
