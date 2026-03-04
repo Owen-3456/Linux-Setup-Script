@@ -293,7 +293,12 @@ install_packages() {
 
     elif [[ "$distro" == "debian" ]]; then
         # Fix any interrupted dpkg operations first
-        run_with_spinner "Fixing interrupted package operations" sudo dpkg --configure -a
+        info "Fixing any interrupted package operations"
+        if sudo dpkg --configure -a >>"$LOG_FILE" 2>&1; then
+            ok "Package system is clean"
+        else
+            warn "dpkg --configure encountered issues, will try to continue"
+        fi
         
         # Ensure non-free repos are enabled first
         enable_debian_repos
@@ -305,7 +310,14 @@ install_packages() {
         fi
 
         run_with_spinner "Updating package lists (nala)" sudo nala update
-        run_with_spinner "Upgrading system" sudo nala upgrade -y
+        
+        # Try to upgrade using apt-get instead of nala to avoid dpkg issues
+        info "Upgrading system packages"
+        if sudo apt-get upgrade -y >>"$LOG_FILE" 2>&1; then
+            ok "System upgraded successfully"
+        else
+            warn "System upgrade encountered issues, continuing with package installation"
+        fi
         
         # Install packages one by one to avoid dependency resolution issues
         local failed_packages=()
