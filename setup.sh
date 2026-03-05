@@ -552,7 +552,7 @@ setup_zsh() {
 
     # Change default shell to zsh if not already set
     if [[ "$SHELL" != "$zsh_path" ]]; then
-        run_with_spinner "Setting zsh as default shell" chsh -s "$zsh_path"
+        run_with_spinner "Setting zsh as default shell" sudo chsh -s "$zsh_path" "$USER"
         ok "Default shell changed to zsh (takes effect on next login)"
     else
         ok "zsh is already the default shell"
