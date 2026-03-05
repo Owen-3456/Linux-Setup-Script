@@ -159,6 +159,7 @@ arch_packages=(
     "git"       # version control
     "git-lfs"   # Git Large File Storage (gitconfig filter)
     "jq"        # JSON processor (used by hb function)
+    "libnotify" # notification library (provides notify-send)
     "nano"      # terminal text editor (EDITOR in zshrc)
     "ripgrep"   # fast recursive search (zshrc alias: grep)
     "stow"      # symlink-based dotfile manager
@@ -203,6 +204,7 @@ debian_packages=(
     "git"       # version control
     "git-lfs"   # Git Large File Storage (gitconfig filter)
     "jq"        # JSON processor (used by hb function)
+    "libnotify-bin" # notification utility (provides notify-send)
     "nano"      # terminal text editor (EDITOR in zshrc)
     "ripgrep"   # fast recursive search (zshrc alias: grep)
     "stow"      # symlink-based dotfile manager
