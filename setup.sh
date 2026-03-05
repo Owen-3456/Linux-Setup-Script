@@ -333,18 +333,40 @@ install_packages() {
         
         # Install packages one by one to avoid dependency resolution issues
         local failed_packages=()
+        local skipped_packages=()
         local installed_count=0
         local total_packages=${#debian_packages[@]}
         
         for pkg in "${debian_packages[@]}"; do
             ((installed_count++)) || true
-            if run_with_spinner "Installing $pkg ($installed_count/$total_packages)" sudo nala install -y "$pkg"; then
-                : # success
+            
+            # Skip large packages if dpkg is broken to avoid hangs
+            if [[ "$dpkg_broken" == "true" ]] && [[ "$pkg" == "libreoffice" || "$pkg" == "mesa-vulkan-drivers" ]]; then
+                skipped_packages+=("$pkg")
+                warn "Skipping $pkg (large package, dpkg is broken)"
+                continue
+            fi
+            
+            # Use timeout for package installation (5 minutes max)
+            if timeout 300 sudo nala install -y "$pkg" >>"$LOG_FILE" 2>&1; then
+                ok "Installing $pkg ($installed_count/$total_packages)"
             else
-                failed_packages+=("$pkg")
+                local exit_code=$?
+                if [[ $exit_code -eq 124 ]]; then
+                    warn "Installing $pkg ($installed_count/$total_packages) - timed out after 5 minutes"
+                    failed_packages+=("$pkg (timeout)")
+                else
+                    fail "Installing $pkg ($installed_count/$total_packages)"
+                    failed_packages+=("$pkg")
+                fi
                 ((installed_count--)) || true
             fi
         done
+        
+        if [[ ${#skipped_packages[@]} -gt 0 ]]; then
+            warn "Skipped ${#skipped_packages[@]} large package(s) due to dpkg issues: ${skipped_packages[*]}"
+            echo "Skipped (dpkg broken): ${skipped_packages[*]}" >> "$LOG_FILE"
+        fi
         
         if [[ ${#failed_packages[@]} -gt 0 ]]; then
             warn "Failed to install ${#failed_packages[@]} package(s): ${failed_packages[*]}"
