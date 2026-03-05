@@ -295,8 +295,58 @@ enable_debian_repos() {
 install_packages() {
     if [[ "$distro" == "arch" ]]; then
         run_with_spinner "Upgrading system" sudo pacman -Syu --noconfirm
-        run_with_spinner "Installing packages (${#arch_packages[@]} packages)" \
-            sudo pacman -S --noconfirm --needed "${arch_packages[@]}"
+        
+        # Install packages one by one for better feedback
+        local failed_packages=()
+        local already_installed=()
+        local updated_packages=()
+        local installed_count=0
+        local total_packages=${#arch_packages[@]}
+        
+        for pkg in "${arch_packages[@]}"; do
+            # Check if package is already installed
+            if pacman -Q "$pkg" &>/dev/null; then
+                # Check if package has updates available
+                if pacman -Qu "$pkg" 2>/dev/null | grep -q "^${pkg} "; then
+                    ((installed_count++)) || true
+                    # Package has updates, install them
+                    if sudo pacman -S --noconfirm "$pkg" >>"$LOG_FILE" 2>&1; then
+                        ok "Updating $pkg ($installed_count/$total_packages)"
+                        updated_packages+=("$pkg")
+                    else
+                        fail "Updating $pkg ($installed_count/$total_packages)"
+                        failed_packages+=("$pkg")
+                        ((installed_count--)) || true
+                    fi
+                else
+                    # Package is up to date
+                    already_installed+=("$pkg")
+                fi
+            else
+                # Package is not installed
+                ((installed_count++)) || true
+                if sudo pacman -S --noconfirm --needed "$pkg" >>"$LOG_FILE" 2>&1; then
+                    ok "Installing $pkg ($installed_count/$total_packages)"
+                else
+                    fail "Installing $pkg ($installed_count/$total_packages)"
+                    failed_packages+=("$pkg")
+                    ((installed_count--)) || true
+                fi
+            fi
+        done
+        
+        if [[ ${#already_installed[@]} -gt 0 ]]; then
+            ok "Skipped ${#already_installed[@]} up-to-date package(s)"
+        fi
+        
+        if [[ ${#updated_packages[@]} -gt 0 ]]; then
+            ok "Updated ${#updated_packages[@]} package(s): ${updated_packages[*]}"
+        fi
+        
+        if [[ ${#failed_packages[@]} -gt 0 ]]; then
+            warn "Failed to install ${#failed_packages[@]} package(s): ${failed_packages[*]}"
+            echo "Failed to install: ${failed_packages[*]}" >> "$LOG_FILE"
+        fi
 
     elif [[ "$distro" == "debian" ]]; then
         # Fix any interrupted dpkg operations first
