@@ -362,24 +362,18 @@ install_packages() {
         # Ensure non-free repos are enabled first
         enable_debian_repos
         
-        run_with_spinner "Updating package lists" sudo apt-get update -qq
-
+        # Install nala if not present (using apt-get)
         if ! command -v nala &>/dev/null; then
+            run_with_spinner "Updating package lists" sudo apt-get update -qq
             run_with_spinner "Installing nala package manager" sudo apt-get install -y nala
         fi
 
-        run_with_spinner "Updating package lists (nala)" sudo nala update
+        # Update package lists with nala
+        run_with_spinner "Updating package lists" sudo nala update
         
-        # Only upgrade if dpkg is not broken
-        if [[ "$dpkg_broken" == "false" ]]; then
-            if run_with_spinner "Upgrading system packages" sudo apt-get upgrade -y; then
-                : # success
-            else
-                warn "System upgrade failed, continuing with package installation"
-            fi
-        else
-            warn "Skipping system upgrade due to package system issues"
-        fi
+        # Skip full system upgrade - we'll update packages individually
+        # This is much faster and avoids issues with broken dpkg states
+        info "Skipping full system upgrade (packages will be updated individually)"
         
         # Install packages one by one to avoid dependency resolution issues
         local failed_packages=()
