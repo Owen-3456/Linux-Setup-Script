@@ -335,13 +335,29 @@ install_packages() {
         local failed_packages=()
         local skipped_packages=()
         local already_installed=()
+        local updated_packages=()
         local installed_count=0
         local total_packages=${#debian_packages[@]}
         
         for pkg in "${debian_packages[@]}"; do
             # Check if package is already installed
             if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
-                already_installed+=("$pkg")
+                # Check if package has updates available
+                if apt list --upgradable 2>/dev/null | grep -q "^${pkg}/"; then
+                    ((installed_count++)) || true
+                    # Package has updates, install them
+                    if timeout 300 sudo nala install -y "$pkg" >>"$LOG_FILE" 2>&1; then
+                        ok "Updating $pkg ($installed_count/$total_packages)"
+                        updated_packages+=("$pkg")
+                    else
+                        fail "Updating $pkg ($installed_count/$total_packages)"
+                        failed_packages+=("$pkg")
+                        ((installed_count--)) || true
+                    fi
+                else
+                    # Package is up to date
+                    already_installed+=("$pkg")
+                fi
                 continue
             fi
             
@@ -371,7 +387,11 @@ install_packages() {
         done
         
         if [[ ${#already_installed[@]} -gt 0 ]]; then
-            ok "Skipped ${#already_installed[@]} already installed package(s)"
+            ok "Skipped ${#already_installed[@]} up-to-date package(s)"
+        fi
+        
+        if [[ ${#updated_packages[@]} -gt 0 ]]; then
+            ok "Updated ${#updated_packages[@]} package(s): ${updated_packages[*]}"
         fi
         
         if [[ ${#skipped_packages[@]} -gt 0 ]]; then
