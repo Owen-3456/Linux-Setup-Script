@@ -334,10 +334,17 @@ install_packages() {
         # Install packages one by one to avoid dependency resolution issues
         local failed_packages=()
         local skipped_packages=()
+        local already_installed=()
         local installed_count=0
         local total_packages=${#debian_packages[@]}
         
         for pkg in "${debian_packages[@]}"; do
+            # Check if package is already installed
+            if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+                already_installed+=("$pkg")
+                continue
+            fi
+            
             ((installed_count++)) || true
             
             # Skip large packages if dpkg is broken to avoid hangs
@@ -362,6 +369,10 @@ install_packages() {
                 ((installed_count--)) || true
             fi
         done
+        
+        if [[ ${#already_installed[@]} -gt 0 ]]; then
+            ok "Skipped ${#already_installed[@]} already installed package(s)"
+        fi
         
         if [[ ${#skipped_packages[@]} -gt 0 ]]; then
             warn "Skipped ${#skipped_packages[@]} large package(s) due to dpkg issues: ${skipped_packages[*]}"
